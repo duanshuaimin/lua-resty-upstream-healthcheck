@@ -66,7 +66,21 @@ local function gen_peer_key(prefix, u, is_backup, id)
     end
     return prefix .. u .. ":p" .. id
 end
-
+local function get_active_peers_count(u)
+    local peers,err=get_primary_peers(u)
+    if not err then
+        return 0
+    end
+    local n=#peers
+    local count=0
+    for i=1,n do
+        local peer=peers[i]
+        if not peer.down then
+            count=count+1
+        end
+    end
+    return count
+end
 local function set_peer_down_globally(ctx, is_backup, id, value)
     local u = ctx.upstream
     local dict = ctx.dict
@@ -133,8 +147,9 @@ local function peer_fail(ctx, is_backup, id, peer)
 
     -- print("ctx fall: ", ctx.fall, ", peer down: ", peer.down,
           -- ", fails: ", fails)
-
-    if not peer.down and fails >= ctx.fall then
+    local c=get_active_peers_count(u)
+    -- remain one peer at least
+    if (c > 1) and (not peer.down) and fails >= ctx.fall then
         warn("peer ", peer.name, " is turned down after ", fails,
                 " failure(s)")
         peer.down = true
@@ -385,7 +400,9 @@ local function upgrade_peers_version(ctx, peers, is_backup)
         else
             down = true
         end
-        if (peer.down and not down) or (not peer.down and down) then
+        local c=get_active_peers_count(u)
+        -- init remain at least one peer
+        if (peer.down and not down) or ((c > 1) and (not peer.down and down)) then
             local ok, err = set_peer_down(u, is_backup, id, down)
             if not ok then
                 errlog("failed to set peer down: ", err)
