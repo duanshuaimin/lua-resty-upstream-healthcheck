@@ -66,6 +66,7 @@ local function gen_peer_key(prefix, u, is_backup, id)
     end
     return prefix .. u .. ":p" .. id
 end
+-- 
 local function get_active_peers_count(u)
     local peers,err=get_primary_peers(u)
     if not err then
